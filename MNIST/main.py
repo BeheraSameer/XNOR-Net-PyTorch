@@ -28,9 +28,8 @@ def save_state(model, acc):
 def train(epoch):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
-        if args.cuda:
-            data, target = data.cuda(), target.cuda()
-        data, target = Variable(data), Variable(target)
+        data, target = data.to(device), target.to(device)
+        #data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
 
         # process the weights including binarization
@@ -48,24 +47,25 @@ def train(epoch):
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.data[0]))
+                100. * batch_idx / len(train_loader), loss.item()))
     return
 
 def test(evaluate=False):
+    
     global best_acc
     model.eval()
     test_loss = 0
     correct = 0
 
     bin_op.binarization()
-    for data, target in test_loader:
-        if args.cuda:
-            data, target = data.cuda(), target.cuda()
-        data, target = Variable(data, volatile=True), Variable(target)
-        output = model(data)
-        test_loss += criterion(output, target).data[0]
-        pred = output.data.max(1, keepdim=True)[1]
-        correct += pred.eq(target.data.view_as(pred)).cpu().sum()
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(device), target.to(device)
+            #data, target = Variable(data), Variable(target)
+            output = model(data)
+            test_loss += criterion(output, target).item()
+            pred = output.data.max(1, keepdim=True)[1]
+            correct += pred.eq(target.data.view_as(pred)).cpu().sum()
 
     bin_op.restore()
     
@@ -126,7 +126,10 @@ if __name__=='__main__':
     
     torch.manual_seed(args.seed)
     if args.cuda:
+        device = torch.device("cuda")
         torch.cuda.manual_seed(args.seed)
+    else:
+        device = torch.device("cpu")
     
     # load data
     kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
@@ -158,8 +161,7 @@ if __name__=='__main__':
         best_acc = pretrained_model['acc']
         model.load_state_dict(pretrained_model['state_dict'])
 
-    if args.cuda:
-        model.cuda()
+    model = model.to(device)
     
     print(model)
     param_dict = dict(model.named_parameters())
