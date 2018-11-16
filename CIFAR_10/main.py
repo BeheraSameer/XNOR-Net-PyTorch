@@ -15,12 +15,15 @@ from models import nin
 from torch.autograd import Variable
 
 def save_state(model, best_acc):
+    '''
+    Saves the best model for future use
+    '''
     print('==> Saving model ...')
     state = {
             'best_acc': best_acc,
             'state_dict': model.state_dict(),
             }
-    for key in state['state_dict'].keys():
+    for key in list(state['state_dict'].keys()):
         if 'module' in key:
             state['state_dict'][key.replace('module.', '')] = \
                     state['state_dict'].pop(key)
@@ -49,7 +52,7 @@ def train(epoch):
         if batch_idx % 100 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\tLR: {}'.format(
                 epoch, batch_idx * len(data), len(trainloader.dataset),
-                100. * batch_idx / len(trainloader), loss.data[0],
+                100. * batch_idx / len(trainloader), loss.item(),
                 optimizer.param_groups[0]['lr']))
     return
 
@@ -63,11 +66,11 @@ def test():
         data, target = Variable(data.cuda()), Variable(target.cuda())
                                     
         output = model(data)
-        test_loss += criterion(output, target).data[0]
+        test_loss += criterion(output, target).item()
         pred = output.data.max(1, keepdim=True)[1]
         correct += pred.eq(target.data.view_as(pred)).cpu().sum()
     bin_op.restore()
-    acc = 100. * correct / len(testloader.dataset)
+    acc = 100. * torch.tensor(correct, dtype=torch.float64) / len(test_loader.dataset)
 
     if acc > best_acc:
         best_acc = acc

@@ -10,16 +10,25 @@ import models
 import util
 from torchvision import datasets, transforms
 from torch.autograd import Variable
+import time
 
 import util
 
 def save_state(model, acc):
+    '''
+    Saves the best model for future use
+    '''
+    print('==> Prints all keys and states. Need to enable binarization to view the binarized data...')
+    bin_op.binarization()
+    print(model.state_dict())
+    bin_op.restore()
     print('==> Saving model ...')
     state = {
             'acc': acc,
             'state_dict': model.state_dict(),
-            }
-    for key in state['state_dict'].keys():
+            } 
+    
+    for key in list(state['state_dict'].keys()):
         if 'module' in key:
             state['state_dict'][key.replace('module.', '')] = \
                     state['state_dict'].pop(key)
@@ -27,9 +36,9 @@ def save_state(model, acc):
 
 def train(epoch):
     model.train()
+    start = time.time()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
-        #data, target = Variable(data), Variable(target)
         optimizer.zero_grad()
 
         # process the weights including binarization
@@ -45,9 +54,11 @@ def train(epoch):
 
         optimizer.step()
         if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.4f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
+    end = time.time()
+    print('Train Epoch: {} . Training Time {:.4f}'.format(epoch, end - start))
     return
 
 def test(evaluate=False):
@@ -58,18 +69,22 @@ def test(evaluate=False):
     correct = 0
 
     bin_op.binarization()
+    start = time.time()
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
-            #data, target = Variable(data), Variable(target)
             output = model(data)
             test_loss += criterion(output, target).item()
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.data.view_as(pred)).cpu().sum()
-
+    end = time.time()
     bin_op.restore()
+   
+    print('Testing for Epoch: {} . Testing Time {:.4f} sec'.format(epoch, end - start))
     
-    acc = 100. * correct / len(test_loader.dataset)
+    #acc = torch.FloatTensor(100 * correct / len(test_loader.dataset))
+    acc = 100. * torch.tensor(correct, dtype=torch.float64) / len(test_loader.dataset)
+ 
     if (acc > best_acc):
         best_acc = acc
         if not evaluate:
@@ -150,6 +165,8 @@ if __name__=='__main__':
     # generate the model
     if args.arch == 'LeNet_5':
         model = models.LeNet_5()
+    elif args.arch == 'Full_LeNet_5':
+        model = models.Full_LeNet_5()
     else:
         print('ERROR: specified arch is not suppported')
         exit()
