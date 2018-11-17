@@ -9,16 +9,18 @@ class BinActive(torch.autograd.Function):
     '''
     def forward(self, input):
         self.save_for_backward(input)
+        mean = torch.mean(input.abs(), dim=1, keepdim=True)
         size = input.size()
         input = input.sign()
-        return input
+        return input, mean
 
-    def backward(self, grad_output):
+    def backward(self, grad_output, grad_mean):
         input, = self.saved_tensors
         grad_input = grad_output.clone()
         grad_input[input.ge(1)] = 0
         grad_input[input.le(-1)] = 0
         return grad_input
+
 
 class BinConv2d(nn.Module): # change the name of BinConv2d
     def __init__(self, input_channels, output_channels,
@@ -32,7 +34,7 @@ class BinConv2d(nn.Module): # change the name of BinConv2d
         self.padding = padding
         self.dropout_ratio = dropout
         self.previous_conv = previous_conv
-
+        
         if dropout!=0:
             self.dropout = nn.Dropout(dropout)
         self.Linear = Linear
@@ -40,6 +42,14 @@ class BinConv2d(nn.Module): # change the name of BinConv2d
             self.bn = nn.BatchNorm2d(input_channels, eps=1e-4, momentum=0.1, affine=True)
             self.conv = nn.Conv2d(input_channels, output_channels,
                     kernel_size=kernel_size, stride=stride, padding=padding, groups=groups)
+            # This convolution layer is used to generate the Beta values
+            self.k_conv = nn.Conv2d(1, 1, kernel_size=kernel_size, stride=stride, padding=padding, groups=groups)
+            for param in self.k_conv.parameters():
+                param.requires_grad = False
+            entry_value = 1. / (kernel_size * kernel_size)
+            self.k_conv.weight.data.fill_(entry_value)
+            self.k_conv.bias.data.fill_(0)
+
         else:
             if self.previous_conv:
                 self.bn = nn.BatchNorm2d(int(input_channels/size), eps=1e-4, momentum=0.1, affine=True)
@@ -47,14 +57,18 @@ class BinConv2d(nn.Module): # change the name of BinConv2d
                 self.bn = nn.BatchNorm1d(input_channels, eps=1e-4, momentum=0.1, affine=True)
             self.linear = nn.Linear(input_channels, output_channels)
         self.relu = nn.ReLU(inplace=True)
-    
+
+
+ 
     def forward(self, x):
         x = self.bn(x)
-        x = BinActive()(x)
+        x, A = BinActive()(x)
         if self.dropout_ratio!=0:
             x = self.dropout(x)
         if not self.Linear:
             x = self.conv(x)
+            K = self.k_conv(A)
+            x = x * K 
         else:
             if self.previous_conv:
                 x = x.view(x.size(0), self.input_channels)

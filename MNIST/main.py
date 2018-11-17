@@ -18,10 +18,13 @@ def save_state(model, acc):
     '''
     Saves the best model for future use
     '''
+
+    '''
     print('==> Prints all keys and states. Need to enable binarization to view the binarized data...')
     bin_op.binarization()
     print(model.state_dict())
     bin_op.restore()
+    '''
     print('==> Saving model ...')
     state = {
             'acc': acc,

@@ -35,6 +35,8 @@ class BinOp():
 
     def meancenterConvParams(self):
         for index in range(self.num_of_params):
+            if not self.target_modules[index].requires_grad:
+                continue
             s = self.target_modules[index].data.size()
             negMean = self.target_modules[index].data.mean(1, keepdim=True).\
                     mul(-1).expand_as(self.target_modules[index].data)
@@ -42,15 +44,21 @@ class BinOp():
 
     def clampConvParams(self):
         for index in range(self.num_of_params):
+            if not self.target_modules[index].requires_grad:
+                continue
             self.target_modules[index].data = \
                     self.target_modules[index].data.clamp(-1.0, 1.0)
 
     def save_params(self):
         for index in range(self.num_of_params):
+            if not self.target_modules[index].requires_grad:
+                continue
             self.saved_params[index].copy_(self.target_modules[index].data)
 
     def binarizeConvParams(self):
         for index in range(self.num_of_params):
+            if not self.target_modules[index].requires_grad:
+                continue
             n = self.target_modules[index].data[0].nelement()
             s = self.target_modules[index].data.size()
             m = self.target_modules[index].data.norm(1, 3, keepdim=True)\
@@ -60,10 +68,14 @@ class BinOp():
 
     def restore(self):
         for index in range(self.num_of_params):
+            if not self.target_modules[index].requires_grad:
+                continue
             self.target_modules[index].data.copy_(self.saved_params[index])
 
     def updateBinaryGradWeight(self):
         for index in range(self.num_of_params):
+            if not self.target_modules[index].requires_grad:
+                continue
             weight = self.target_modules[index].data
             n = weight[0].nelement()
             s = weight.size()
