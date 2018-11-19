@@ -33,7 +33,7 @@ train_iterator, valid_iterator, test_iterator = data.BucketIterator.splits(
 
 class CNN(nn.Module):
     def __init__(self, vocab_size, embedding_dim, n_filters, filter_sizes, output_dim, dropout):
-        super().__init__()
+        super(CNN, self).__init__()
         
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
         self.convs = nn.ModuleList([nn.Conv2d(in_channels=1, out_channels=n_filters, kernel_size=(fs,embedding_dim)) for fs in filter_sizes])
