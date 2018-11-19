@@ -2,6 +2,9 @@ import torch
 from torchtext import data
 from torchtext import datasets
 import random
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 
 SEED = 1234
 
