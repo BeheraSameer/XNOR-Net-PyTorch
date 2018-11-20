@@ -1,3 +1,4 @@
+'''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -40,3 +41,4 @@ class CNN(nn.Module):
         #cat = [batch size, n_filters * len(filter_sizes)]
             
         return self.fc(cat)
+'''

@@ -72,7 +72,7 @@ if __name__=='__main__':
 
 	# Select model here
 	arch = "CNN"
-	# arch = "Binary_CNN"
+	#arch = "Binary_CNN"
 
 	# Training settings
 	SEED = 1234
@@ -110,7 +110,7 @@ if __name__=='__main__':
 	if arch == "CNN":
 		model = models.CNN(INPUT_DIM, EMBEDDING_DIM, N_FILTERS, FILTER_SIZES, OUTPUT_DIM, DROPOUT)
 	else:
-		model = models.BinaryCNN(INPUT_DIM, EMBEDDING_DIM, N_FILTERS, FILTER_SIZES, OUTPUT_DIM, DROPOUT)
+		model = models.Binary_CNN(INPUT_DIM, EMBEDDING_DIM, N_FILTERS, FILTER_SIZES, OUTPUT_DIM, DROPOUT)
 	
 	pretrained_embeddings = TEXT.vocab.vectors
 
@@ -129,5 +129,7 @@ if __name__=='__main__':
 	    train_loss, train_acc = train(model, train_iterator, optimizer, criterion)
 	    valid_loss, valid_acc = evaluate(model, valid_iterator, criterion)
 	    
-	    print(f'| Epoch: {epoch+1:02} | Train Loss: {train_loss:.3f} | Train Acc: {train_acc*100:.2f}% | Val. Loss: {valid_loss:.3f} | Val. Acc: {valid_acc*100:.2f}% |')
+	    print('| Epoch: {:02} | Train Loss: {:.3f} | Train Acc: {:.2f}% | Val. Loss: {:.3f} | Val. Acc: {:.2f}% |'.format(epoch, train_loss, train_acc * 100, valid_loss, valid_acc*100))
+	test_loss, test_acc = evaluate(model, test_iterator, criterion)
 
+	print('| Test Loss: {:.3f} | Test Acc: {:.2f}% |'.format(test_loss, test_acc * 100)) 
