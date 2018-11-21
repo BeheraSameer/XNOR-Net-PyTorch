@@ -22,7 +22,7 @@ class BinActive(torch.autograd.Function):
 
 class BinConv2d(nn.Module): # change the name of BinConv2d
     def __init__(self, input_channels, output_channels,
-            kernel_size=-1, stride=-1, padding=-1, groups=1, dropout=0,
+            kernel_size=(-1,-1), stride=-1, padding=-1, groups=1, dropout=0,
             Linear=False, previous_conv=False, size=0):
         super(BinConv2d, self).__init__()
         self.input_channels = input_channels
@@ -44,7 +44,7 @@ class BinConv2d(nn.Module): # change the name of BinConv2d
             self.k_conv = nn.Conv2d(1, 1, kernel_size=kernel_size, stride=stride, padding=padding, groups=groups)
             for param in self.k_conv.parameters():
                 param.requires_grad = False
-            entry_value = 1. / (kernel_size * kernel_size)
+            entry_value = 1. / (kernel_size[0] * kernel_size[1])
             self.k_conv.weight.data.fill_(entry_value)
             self.k_conv.bias.data.fill_(0)
 
@@ -54,10 +54,10 @@ class BinConv2d(nn.Module): # change the name of BinConv2d
             # else:
             #     self.bn = nn.BatchNorm1d(input_channels, eps=1e-4, momentum=0.1, affine=True)
             self.linear = nn.Linear(input_channels, output_channels)
-        # self.relu = nn.ReLU(inplace=True)
+        #self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        x = self.bn(x)
+        #x = self.bn(x)
         x, A = BinActive()(x)
         if self.dropout_ratio!=0:
             x = self.dropout(x)
@@ -69,7 +69,7 @@ class BinConv2d(nn.Module): # change the name of BinConv2d
             if self.previous_conv:
                 x = x.view(x.size(0), self.input_channels)
             x = self.linear(x)
-        x = self.relu(x)
+        #x = self.relu(x)
         return x
 
 
@@ -124,8 +124,8 @@ class Binary_CNN(nn.Module):
         
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
         self.conv_0 = nn.Conv2d(in_channels=1, out_channels=n_filters, kernel_size=(filter_sizes[0],embedding_dim))
-        self.conv_1 = nn.BinConv2d(in_channels=1, out_channels=n_filters, kernel_size=(filter_sizes[1],embedding_dim))
-        self.conv_2 = nn.BinConv2d(in_channels=1, out_channels=n_filters, kernel_size=(filter_sizes[2],embedding_dim))
+        self.conv_1 = BinConv2d(input_channels=1, output_channels=n_filters, kernel_size=(filter_sizes[1],embedding_dim), padding=0, stride=1)
+        self.conv_2 = BinConv2d(input_channels=1, output_channels=n_filters, kernel_size=(filter_sizes[2],embedding_dim), padding=0, stride=1)
         self.fc = nn.Linear(len(filter_sizes)*n_filters, output_dim)
         self.dropout = nn.Dropout(dropout)
         

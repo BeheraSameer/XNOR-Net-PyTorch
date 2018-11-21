@@ -71,8 +71,8 @@ def evaluate(model, iterator, criterion):
 if __name__=='__main__':
 
 	# Select model here
-	arch = "CNN"
-	#arch = "Binary_CNN"
+	#arch = "CNN"
+	arch = "Binary_CNN"
 
 	# Training settings
 	SEED = 1234
