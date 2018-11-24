@@ -1,6 +1,7 @@
 from __future__ import print_function
 import argparse
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -11,6 +12,7 @@ import util
 from torchvision import datasets, transforms
 from torch.autograd import Variable
 import time
+from tensorboardX import SummaryWriter
 
 import util
 
@@ -37,9 +39,8 @@ def save_state(model, acc):
                     state['state_dict'].pop(key)
     torch.save(state, 'models/'+args.arch+'.best.pth.tar')
 
-def train(epoch):
+def train(epoch, writer):
     model.train()
-    start = time.time()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
@@ -59,12 +60,16 @@ def train(epoch):
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.4f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
-    end = time.time()
-    print('Train Epoch: {} . Training Time {:.4f}'.format(epoch, end - start))
+                100. * batch_idx / len(train_loader), loss.item())) 
+    
+    bin_op.binarization()
+    writer.add_histogram('/bin_conv2D/weights',model.state_dict()['bin_conv2.conv.weight'], epoch)
+    writer.add_histogram('/bin_conv2D/bias',model.state_dict()['bin_conv2.conv.bias'], epoch)
+    bin_op.restore()
+    
     return
 
-def test(evaluate=False):
+def test(epoch, writer, evaluate=False):
     
     global best_acc
     model.eval()
@@ -81,8 +86,22 @@ def test(evaluate=False):
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.data.view_as(pred)).cpu().sum()
     end = time.time()
+    if evaluate:
+        count = 0
+        for filter_set in (model.state_dict()['bin_conv2.conv.weight']):
+            count_in = 0
+            for filter in filter_set:
+                img2 = np.zeros((3,filter.shape[0], filter.shape[1]))
+                for i in range(filter.shape[0]):
+                    for j in range(filter.shape[1]):
+                       if filter[i][j] > 0:
+                          img2[:,i,j] = 1;
+                       else:
+                          img2[:,i,j] = 0;
+                writer.add_image('channel_{}_in'.format(count), img2, count_in)
+                count_in += 1
+            count += 1
     bin_op.restore()
-   
     print('Testing for Epoch: {} . Testing Time {:.4f} sec'.format(epoch, end - start))
     
     #acc = torch.FloatTensor(100 * correct / len(test_loader.dataset))
@@ -94,6 +113,8 @@ def test(evaluate=False):
             save_state(model, best_acc)
 
     test_loss /= len(test_loader.dataset)
+    writer.add_scalar('testing_loss', test_loss * args.batch_size, epoch)
+    writer.add_scalar('testing_accuracy',  100. * correct / len(test_loader.dataset), epoch)
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)'.format(
         test_loss * args.batch_size, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
@@ -201,12 +222,14 @@ if __name__=='__main__':
 
     # define the binarization operator
     bin_op = util.BinOp(model)
+    # writer to build tensorboard model
+    writer = SummaryWriter('runs/exp1/{}/'.format(args.arch)) 
 
     if args.evaluate:
-        test(evaluate=True)
+        test(1, writer, evaluate=True)
         exit()
 
     for epoch in range(1, args.epochs + 1):
         adjust_learning_rate(optimizer, epoch)
-        train(epoch)
-        test()
+        train(epoch, writer)
+        test(epoch, writer)

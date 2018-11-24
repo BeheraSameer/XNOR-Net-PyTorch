@@ -10,6 +10,7 @@ import data
 import util
 import torch.nn as nn
 import torch.optim as optim
+from tensorboardX import SummaryWriter
 
 from models import nin
 from torch.autograd import Variable
@@ -29,7 +30,7 @@ def save_state(model, best_acc):
                     state['state_dict'].pop(key)
     torch.save(state, 'models/nin.pth.tar')
 
-def train(epoch):
+def train(epoch, writer):
     model.train()
     for batch_idx, (data, target) in enumerate(trainloader):
         # process the weights including binarization
@@ -43,7 +44,8 @@ def train(epoch):
         # backwarding
         loss = criterion(output, target)
         loss.backward()
-        
+
+
         # restore weights
         bin_op.restore()
         bin_op.updateBinaryGradWeight()
@@ -54,6 +56,12 @@ def train(epoch):
                 epoch, batch_idx * len(data), len(trainloader.dataset),
                 100. * batch_idx / len(trainloader), loss.item(),
                 optimizer.param_groups[0]['lr']))
+
+    #To-Do: Fix it
+    bin_op.binarization()
+    #writer.add_histogram('weights',model.state_dict()['bin_conv2.conv.weight'], epoch)
+    bin_op.restore()
+
     return
 
 def test():
@@ -77,8 +85,10 @@ def test():
         save_state(model, best_acc)
     
     test_loss /= len(testloader.dataset)
+    writer.add_scalar('testing_loss', test_loss * args.batch_size, epoch)
+    writer.add_scalar('testing_accuracy',  100. * correct / len(testloader.dataset), epoch)
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.2f}%)'.format(
-        test_loss * 128., correct, len(testloader.dataset),
+        test_loss * args.batch_size, correct, len(testloader.dataset),
         100. * correct / len(testloader.dataset)))
     print('Best Accuracy: {:.2f}%\n'.format(best_acc))
     return
@@ -171,13 +181,15 @@ if __name__=='__main__':
     # define the binarization operator
     bin_op = util.BinOp(model)
 
+    writer = SummaryWriter('runs/exp1/{}/'.format(args.arch)) 
+
     # do the evaluation if specified
     if args.evaluate:
-        test()
+        test(1, writer, evaluate=True)
         exit(0)
 
     # start training
     for epoch in range(1, 320):
         adjust_learning_rate(optimizer, epoch)
-        train(epoch)
-        test()
+        train(epoch, writer)
+        test(epoch, writer)

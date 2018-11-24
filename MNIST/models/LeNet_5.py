@@ -2,6 +2,8 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tensorboardX import SummaryWriter
+import numpy as np
 
 class BinActive(torch.autograd.Function):
     '''
@@ -66,6 +68,13 @@ class BinConv2d(nn.Module): # change the name of BinConv2d
         if self.dropout_ratio!=0:
             x = self.dropout(x)
         if not self.Linear:
+            '''
+            with SummaryWriter('runs/exp1') as w:
+                img2 = np.zeros((3,x.shape[-2], x.shape[-1]))
+                for i in range(3):
+                    img2[i,:,:] = x[1][1]
+                w.add_image('pre_conv', img2, 1)
+            '''
             x = self.conv(x)
             K = self.k_conv(A)
             x = x * K 
