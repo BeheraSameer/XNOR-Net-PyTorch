@@ -28,8 +28,10 @@ class BinOp():
         return
 
     def binarization(self):
-        self.meancenterConvParams()
-        self.clampConvParams()
+        # All the binarized layers receive the vectorized words
+        # hence no need of mean centering nor clamping
+        #self.meancenterConvParams()
+        #self.clampConvParams()
         self.save_params()
         self.binarizeConvParams()
 

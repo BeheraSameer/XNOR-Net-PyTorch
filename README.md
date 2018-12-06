@@ -1,75 +1,67 @@
-# XNOR-Net-Pytorch
-This a PyTorch implementation of the [XNOR-Net](https://github.com/allenai/XNOR-Net). I implemented Binarized Neural Network (BNN) for:  
+# CSE-633 Course Project 
+This a PyTorch implementation of the [XNOR-Net](https://github.com/allenai/XNOR-Net). The Binary Neural Network was implemented for MNIST, CIFAR-10 and IMDB datasets. MNIST and CIFAR-10 being image classification problem whereas IMDB being sentiment analysis. 
 
-| Dataset  | Network                  | Accuracy                    | Accuracy of floating-point |
-|----------|:-------------------------|:----------------------------|:---------------------------|
-| MNIST    | LeNet-5                  | 99.23%                      | 99.34%                     |
-| CIFAR-10 | Network-in-Network (NIN) | 86.28%                      | 89.67%                     |
-| ImageNet | AlexNet                  | Top-1: 44.87% Top-5: 69.70% | Top-1: 57.1% Top-5: 80.2%  |
-| IMDB     | Full Precision Model     | 92.68%                      | NA                         |
+## Setup Instructions
+In a freshly created VM running Ubuntu 16.04 execute the following steps:
+
+    1. sudo apt-get update 
+    2. sudo apt-get install python3-pip
+    3.  <details><summary> Install CUDA Drivers by running the below script </summary>
+#!/bin/bash
+echo "Checking for CUDA and installing."
+# Check for CUDA and try to install.
+if ! dpkg-query -W cuda-9-0; then
+  # The 16.04 installer works with 16.10.
+  curl -O http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-repo-ubuntu1604_9.0.176-1_amd64.deb
+  dpkg -i ./cuda-repo-ubuntu1604_9.0.176-1_amd64.deb
+  apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
+  apt-get update
+  apt-get install cuda-9-0 -y
+fi
+# Enable persistence mode
+nvidia-smi -pm 1
+<details>
+
+
+    4. pip3 install torch torchvision
+
+    5. pip3 install torchtext
+
+    6. pip3 install -U spacy
+
+    7. python3 -m spacy download en
+
+    8. pip3 install tensorboardX
+
 
 ## MNIST
-I implemented the LeNet-5 structure for the MNIST dataset. I am using the dataset reader provided by [torchvision](https://github.com/pytorch/vision). To run the training:
+LeNet-5 structure for the MNIST dataset. The implementation uses the dataset reader provided by [torchvision](https://github.com/pytorch/vision). To run the training:
 ```bash
 $ cd <Repository Root>/MNIST/
 $ python main.py
 ```
-Pretrained model can be downloaded [here](https://drive.google.com/open?id=0B-7I62GOSnZ8R3Jzd0ozdzlJUk0). To evaluate the pretrained model:
+
+The training records the best model. To evaluate the pretrained model:
 ```bash
 $ cp <Pretrained Model> <Repository Root>/MNIST/models/
 $ python main.py --pretrained models/LeNet_5.best.pth.tar --evaluate
 ```
 
 ## CIFAR-10
-I implemented the NIN structure for the CIFAR-10 dataset. You can download the training and validation datasets [here](https://drive.google.com/open?id=0B-7I62GOSnZ8Z0ZCVXFtVnFEaTg) and uncompress the .zip file. To run the training:
+NIN structure was used for the CIFAR-10 dataset. You can download the training and validation datasets [here](https://drive.google.com/open?id=0B-7I62GOSnZ8Z0ZCVXFtVnFEaTg) and uncompress the .zip file. To run the training:
 ```bash
 $ cd <Repository Root>/CIFAR_10/
 $ ln -s <Datasets Root> data
 $ python main.py
 ```
-Pretrained model can be downloaded [here](https://drive.google.com/open?id=0B-7I62GOSnZ8UjJqNnR1V0dMbWs). To evaluate the pretrained model:
+The training records the best model. To evaluate the pretrained model:
 ```bash
 $ cp <Pretrained Model> <Repository Root>/CIFAR_10/models/
 $ python main.py --pretrained models/nin.best.pth.tar --evaluate
 ```
-
-## ImageNet
-I implemented the AlexNet for the ImageNet dataset. You can download the preprocessed dataset [here](https://drive.google.com/uc?export=download&id=0B-7I62GOSnZ8aENhOEtESVFHa2M) and uncompress it. However, to use this dataset, you have to install [Caffe](https://github.com/BVLC/caffe) first. Support with [torchvision](https://github.com/pytorch/vision) data reader will soon be added. If you need the function now, please contact ```jiecaoyu@umich.edu```.  
-To set up the dataset:
+## IMDB
+N-gram models was used for IMDB sentiment analysis. The implementation uses the dataset reader provided by [torchtext](https://github.com/pytorch/text). To run the training:
 ```bash
-$ cd <Repository Root>/ImageNet/networks/
-$ ln -s <Datasets Root> data
-```
-
-### AlexNet
-To train the network:
-```bash
-$ cd <Repository Root>/ImageNet/networks/
+$ cd <Repository Root>/IMDB/
 $ python main.py
 ```
-Pretrained model can be downloaded [here](https://drive.google.com/open?id=0B-7I62GOSnZ8bUtZUXdZLVBtUDQ). To evaluate the pretrained model:
-```bash
-$ cp <Pretrained Model> <Repository Root>/ImageNet/networks/
-$ python main.py --resume alexnet.baseline.pth.tar --evaluate
-```
-The training log can be found [here](https://raw.githubusercontent.com/jiecaoyu/XNOR-Net-PyTorch/master/ImageNet/networks/log.baseline).
-
-## Todo
-- Generate new dataset without caffe support.
-- NIN for ImageNet.
-
-## Notes
-### Gradients of scaled sign function
-In the paper, the gradient in backward after the scaled sign function is  
-  
-![equation](http://latex.codecogs.com/gif.latex?%5Cfrac%7B%5Cpartial%20C%7D%7B%5Cpartial%20W_i%7D%3D%5Cfrac%7B%5Cpartial%20C%7D%7B%5Cpartial%20%7B%5Cwidetilde%7BW%7D%7D_i%7D%20%28%5Cfrac%7B1%7D%7Bn%7D+%5Cfrac%7B%5Cpartial%20sign%28W_i%29%7D%7B%5Cpartial%20W_i%7D%5Ccdot%20%5Calpha%20%29)
-
-<!--
-\frac{\partial C}{\partial W_i}=\frac{\partial C}{\partial {\widetilde{W}}_i} (\frac{1}{n}+\frac{\partial sign(W_i)}{\partial W_i}\cdot \alpha )
--->
-
-However, this equation is actually inaccurate. The correct backward gradient should be
-
-![equation](https://latex.codecogs.com/gif.latex?%5Cfrac%7B%5Cpartial%20C%7D%7B%5Cpartial%20W_%7Bi%7D%7D%20%3D%20%5Cfrac%7B1%7D%7Bn%7D%20%5Ccdot%20sign%28W_%7Bi%7D%29%20%5Ccdot%20%5Csum_%7Bj%3D1%7D%5E%7Bn%7D%5B%5Cfrac%7B%5Cpartial%20C%7D%7B%5Cpartial%20%5Cwidetilde%7BW%7D_j%7D%20%5Ccdot%20sign%28W_j%29%5D%20&plus;%20%5Cfrac%7B%5Cpartial%20C%7D%7B%5Cpartial%20%5Cwidetilde%7BW%7D_i%7D%20%5Ccdot%20%5Cfrac%7Bsign%28W_i%29%7D%7BW_i%7D%20%5Ccdot%20%5Calpha)
-
-Details about this correction can be found in the [notes](notes/notes.pdf) (section 1).

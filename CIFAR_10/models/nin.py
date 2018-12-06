@@ -36,14 +36,6 @@ class BinConv2d(nn.Module):
         self.conv = nn.Conv2d(input_channels, output_channels,
                 kernel_size=kernel_size, stride=stride, padding=padding)
 
-        # This convolution layer is used to generate the Beta values
-        self.k_conv = nn.Conv2d(1, 1, kernel_size=kernel_size, stride=stride, padding=padding, groups=groups)
-        for param in self.k_conv.parameters():
-            param.requires_grad = False
-        entry_value = 1. / (kernel_size * kernel_size)
-        self.k_conv.weight.data.fill_(entry_value)
-        self.k_conv.bias.data.fill_(0)
-
         self.relu = nn.ReLU(inplace=True)
     
     def forward(self, x):
@@ -52,8 +44,6 @@ class BinConv2d(nn.Module):
         if self.dropout_ratio!=0:
             x = self.dropout(x)
         x = self.conv(x)
-        K = self.k_conv(A)
-	x = x * K
         x = self.relu(x)
         return x
 

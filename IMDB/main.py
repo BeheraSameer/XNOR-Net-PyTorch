@@ -7,6 +7,7 @@ import torch.nn.functional as F
 import util
 import torch.optim as optim
 import models
+from tensorboardX import SummaryWriter
 
 def binary_accuracy(preds, y):
     """
@@ -30,6 +31,9 @@ def train(model, iterator, optimizer, criterion):
         
         optimizer.zero_grad()
         
+        # process the weights including binarization
+        bin_op.binarization()
+        
         predictions = model(batch.text).squeeze(1)
         
         loss = criterion(predictions, batch.label.float())
@@ -37,6 +41,10 @@ def train(model, iterator, optimizer, criterion):
         acc = binary_accuracy(predictions, batch.label.float())
         
         loss.backward()
+
+	# restore weights
+        bin_op.restore()
+        bin_op.updateBinaryGradWeight()
         
         optimizer.step()
         
@@ -51,6 +59,7 @@ def evaluate(model, iterator, criterion):
     epoch_acc = 0
     
     model.eval()
+    bin_op.binarization()
     
     with torch.no_grad():
     
@@ -64,6 +73,7 @@ def evaluate(model, iterator, criterion):
 
             epoch_loss += loss.item()
             epoch_acc += acc.item()
+    bin_op.restore()
         
     return epoch_loss / len(iterator), epoch_acc / len(iterator)
 
@@ -111,6 +121,10 @@ if __name__=='__main__':
 		model = models.CNN(INPUT_DIM, EMBEDDING_DIM, N_FILTERS, FILTER_SIZES, OUTPUT_DIM, DROPOUT)
 	else:
 		model = models.Binary_CNN(INPUT_DIM, EMBEDDING_DIM, N_FILTERS, FILTER_SIZES, OUTPUT_DIM, DROPOUT)
+	# define the binarization operator
+	bin_op = util.BinOp(model)
+	# writer to build tensorboard model
+	writer = SummaryWriter('runs/exp1/{}/'.format(arch)) 
 	
 	pretrained_embeddings = TEXT.vocab.vectors
 
@@ -128,6 +142,15 @@ if __name__=='__main__':
 
 	    train_loss, train_acc = train(model, train_iterator, optimizer, criterion)
 	    valid_loss, valid_acc = evaluate(model, valid_iterator, criterion)
+	    writer.add_scalar('validation_loss', valid_loss, epoch)
+	    writer.add_scalar('validation_accuracy',  100. * valid_acc, epoch)
+	    bin_op.binarization()
+	    #print(model.state_dict())
+	    writer.add_histogram('/4_gram/weights',model.state_dict()['conv_1.conv.weight'], epoch)
+	    writer.add_histogram('/4_gram/bias',model.state_dict()['conv_1.conv.bias'], epoch)
+	    writer.add_histogram('/5_gram/weights',model.state_dict()['conv_2.conv.weight'], epoch)
+	    writer.add_histogram('/5_gram/bias',model.state_dict()['conv_2.conv.bias'], epoch)
+	    bin_op.restore()
 	    
 	    print('| Epoch: {:02} | Train Loss: {:.3f} | Train Acc: {:.2f}% | Val. Loss: {:.3f} | Val. Acc: {:.2f}% |'.format(epoch, train_loss, train_acc * 100, valid_loss, valid_acc*100))
 	test_loss, test_acc = evaluate(model, test_iterator, criterion)
